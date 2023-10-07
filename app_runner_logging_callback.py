@@ -2,9 +2,14 @@ import json
 from flask_cors import CORS
 from flask import Flask, jsonify, request
 from flask_restful import Api, Resource
+import pymongo
 
 
 from general_util import setup_logger
+
+mongo_client = pymongo.MongoClient("mongodb://localhost:27017/")  # Change the connection string as needed
+db = mongo_client["Api_Message_Response"]  # Replace 'your_database_name' with your actual database name
+collection = db["Response"]
 
 try:
     import unzip_requirements
@@ -50,6 +55,27 @@ CORS(app)
 api = Api(app)
 
 api.add_resource(ChatEndpoint, '/verifast')
+
+
+
+@app.route('/store_data', methods=['POST'])
+def store_data():
+    try:
+        # Get the JSON payload from the frontend
+        payload = request.json
+
+        # Insert the payload into the MongoDB collection
+        inserted_document = collection.insert_one(payload)
+
+        if inserted_document.inserted_id:
+            response = {"message": "Data stored successfully", "document_id": str(inserted_document.inserted_id)}
+            return jsonify(response), 201  # Respond with HTTP status code 201 (Created)
+        else:
+            return jsonify({"message": "Failed to store data"}), 500  # Respond with HTTP status code 500 (Internal Server Error)
+
+    except Exception as e:
+        return jsonify({"message": f"An error occurred: {str(e)}"}), 400  # Respond with HTTP status code 400 (Bad Request)
+
 
 if __name__ == '__main__':
     app.run(debug=True)  # Set debug to False in a production environment
